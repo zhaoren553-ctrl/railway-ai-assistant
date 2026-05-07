@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>机车智能防溜铁鞋 · AI 知识助手</title>
+  <style>
+    /* ====== 全局 ====== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #232638;
+      --border: #2e3146;
+      --accent: #4f6ef7;
+      --accent2: #6c8aff;
+      --accent-glow: rgba(79,110,247,.25);
+      --text: #e2e4f0;
+      --text-muted: #8b8fa8;
+      --user-bubble: #1e3a6e;
+      --ai-bubble: #1a1d27;
+      --danger: #e05252;
+      --success: #4caf50;
+      --warn: #f5a623;
+      --font: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+      --mono: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ====== 顶栏 ====== */
+    header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #4f6ef7, #7a5af8);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+      box-shadow: 0 0 14px var(--accent-glow);
+    }
+    .logo-text h1 { font-size: 16px; font-weight: 700; color: var(--text); line-height:1.2; }
+    .logo-text p  { font-size: 11px; color: var(--text-muted); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .tag {
+      font-size: 11px; padding: 3px 9px; border-radius: 20px;
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .tag.active { border-color: var(--success); color: var(--success); background: rgba(76,175,80,.1); }
+    #api-key-btn {
+      font-size: 12px; padding: 5px 14px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer; transition: all .2s;
+    }
+    #api-key-btn:hover { border-color: var(--accent); color: var(--text); }
+    #clear-btn {
+      font-size: 12px; padding: 5px 14px; border-radius: 8px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer; transition: all .2s;
+    }
+    #clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ====== 主体 ====== */
+    main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ====== 侧边知识库面板 ====== */
+    .sidebar {
+      width: 260px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 14px 16px 10px;
+      font-size: 12px; font-weight: 600;
+      color: var(--text-muted); letter-spacing: .8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .kb-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .kb-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 16px; cursor: pointer;
+      transition: background .15s;
+    }
+    .kb-item:hover { background: var(--surface2); }
+    .kb-item.active { background: rgba(79,110,247,.12); border-left: 3px solid var(--accent); padding-left: 13px; }
+    .kb-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .kb-info { min-width: 0; }
+    .kb-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kb-desc  { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--text-muted); line-height: 1.6;
+    }
+    .sidebar-footer strong { color: var(--accent2); }
+
+    /* ====== 聊天区 ====== */
+    .chat-wrap {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    }
+    #chat-container {
+      flex: 1; overflow-y: auto; padding: 24px 32px;
+      scroll-behavior: smooth;
+    }
+    #chat-container::-webkit-scrollbar { width: 4px; }
+    #chat-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ====== 消息 ====== */
+    .msg {
+      display: flex; gap: 14px; margin-bottom: 24px;
+      animation: fadeUp .3s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg.user { flex-direction: row-reverse; }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .avatar.ai-av { background: linear-gradient(135deg,#4f6ef7,#7a5af8); box-shadow: 0 0 10px var(--accent-glow); }
+    .avatar.user-av { background: var(--user-bubble); border: 1px solid rgba(79,110,247,.3); }
+    .bubble {
+      max-width: 70%; padding: 14px 18px; border-radius: 14px;
+      font-size: 14px; line-height: 1.75;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .msg.user .bubble {
+      background: var(--user-bubble);
+      border: 1px solid rgba(79,110,247,.3);
+      border-radius: 14px 4px 14px 14px;
+    }
+    .msg.ai .bubble {
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      border-radius: 4px 14px 14px 14px;
+    }
+    .bubble-meta {
+      font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .source-tag {
+      display: inline-block; font-size: 10px; padding: 1px 7px;
+      border-radius: 4px; border: 1px solid;
+    }
+    .source-tag.kb  { border-color: var(--success); color: var(--success); background: rgba(76,175,80,.08); }
+    .source-tag.net { border-color: var(--warn);    color: var(--warn);    background: rgba(245,166,35,.08); }
+    .source-tag.mix { border-color: var(--accent2); color: var(--accent2); background: rgba(108,138,255,.08); }
+
+    /* 渲染Markdown风格 */
+    .bubble p  { margin-bottom: 8px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; margin-top: 12px; color: var(--accent2); }
+    .bubble h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; margin-top: 10px; }
+    .bubble ul, .bubble ol { padding-left: 20px; margin-bottom: 8px; }
+    .bubble li { margin-bottom: 4px; }
+    .bubble code {
+      background: rgba(79,110,247,.15); color: #a8c0ff;
+      padding: 1px 6px; border-radius: 4px;
+      font-family: var(--mono); font-size: 13px;
+    }
+    .bubble pre {
+      background: #0d1020; border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px; overflow-x: auto;
+      margin: 10px 0;
+    }
+    .bubble pre code {
+      background: none; padding: 0; color: #c9d1d9; font-size: 12px;
+    }
+    .bubble table {
+      border-collapse: collapse; width: 100%; font-size: 13px; margin: 10px 0;
+    }
+    .bubble th, .bubble td {
+      border: 1px solid var(--border); padding: 6px 12px; text-align: left;
+    }
+    .bubble th { background: var(--surface2); color: var(--accent2); }
+    .bubble strong { color: #c9d6ff; }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+    /* 打字光标 */
+    .typing-cursor::after {
+      content: '▌'; animation: blink .7s infinite; color: var(--accent);
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* 思考动画 */
+    .thinking {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text-muted); font-size: 13px;
+    }
+    .dots span {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--accent);
+      animation: dotBounce 1.2s infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: .2s; }
+    .dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dotBounce {
+      0%,80%,100%{transform:translateY(0)}
+      40%{transform:translateY(-6px)}
+    }
+
+    /* ====== 欢迎屏 ====== */
+    #welcome {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 24px;
+      padding: 32px;
+    }
+    .welcome-icon {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #4f6ef7, #7a5af8);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+    #welcome h2 { font-size: 22px; font-weight: 700; text-align: center; }
+    #welcome p  { font-size: 14px; color: var(--text-muted); text-align: center; max-width: 500px; line-height: 1.7; }
+    .quick-questions {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 600px;
+    }
+    .quick-btn {
+      font-size: 13px; padding: 8px 16px; border-radius: 20px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer; transition: all .2s;
+    }
+    .quick-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(79,110,247,.1); }
+
+    /* ====== 输入栏 ====== */
+    .input-area {
+      flex-shrink: 0;
+      padding: 16px 32px 20px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    .input-box {
+      display: flex; align-items: flex-end; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 10px 14px;
+      transition: border-color .2s;
+    }
+    .input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    #user-input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: var(--font); font-size: 14px;
+      resize: none; max-height: 160px; line-height: 1.6;
+    }
+    #user-input::placeholder { color: var(--text-muted); }
+    #send-btn {
+      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      background: linear-gradient(135deg, #4f6ef7, #7a5af8);
+      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, box-shadow .15s; font-size: 16px;
+    }
+    #send-btn:hover { transform: scale(1.06); box-shadow: 0 0 12px var(--accent-glow); }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .input-hints {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 8px; font-size: 11px; color: var(--text-muted);
+    }
+    .hint-item { display: flex; align-items: center; gap: 4px; }
+    kbd {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 4px; padding: 1px 5px; font-family: var(--mono); font-size: 10px;
+    }
+
+    /* ====== API Key 弹窗 ====== */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(4px);
+    }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; width: 440px; max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      animation: modalIn .25s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(.94); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .modal p  { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+    .modal input {
+      width: 100%; padding: 10px 14px; border-radius: 10px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 14px; font-family: var(--mono);
+      outline: none; transition: border-color .2s;
+      margin-bottom: 14px;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-primary {
+      padding: 8px 20px; border-radius: 8px;
+      background: linear-gradient(135deg,#4f6ef7,#7a5af8);
+      border: none; color: #fff; font-size: 14px; cursor: pointer; transition: transform .15s;
+    }
+    .btn-primary:hover { transform: scale(1.03); }
+    .btn-cancel {
+      padding: 8px 20px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s;
+    }
+    .btn-cancel:hover { border-color: var(--danger); color: var(--danger); }
+    .modal-link { font-size: 12px; color: var(--accent2); text-decoration: none; }
+    .modal-link:hover { text-decoration: underline; }
+
+    /* ====== 滚动条 ====== */
+    .kb-list::-webkit-scrollbar { width: 3px; }
+    .kb-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* ====== 响应式 ====== */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      #chat-container { padding: 16px; }
+      .input-area { padding: 12px 16px 16px; }
+      .bubble { max-width: 90%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<header>
+  <div class="logo-icon">🛤️</div>
+  <div class="logo-text">
+    <h1>机车智能防溜铁鞋 AI 助手</h1>
+    <p>联动控制与预警系统 · 智能问答平台</p>
+  </div>
+  <div class="header-right">
+    <span class="tag" id="status-tag">未连接</span>
+    <button id="api-key-btn">⚙ 配置 API Key</button>
+    <button id="clear-btn">🗑 清空对话</button>
+  </div>
+</header>
+
+<main>
+  <!-- 侧边知识库 -->
+  <aside class="sidebar">
+    <div class="sidebar-header">📚 本地知识库</div>
+    <div class="kb-list" id="kb-list"></div>
+    <div class="sidebar-footer">
+      <strong>优先级策略</strong><br>
+      1️⃣ 本地文档知识库<br>
+      2️⃣ DeepSeek 大模型推理<br>
+      3️⃣ 联网搜索补充（需授权）<br><br>
+      所有回答均注明来源
+    </div>
+  </aside>
+
+  <!-- 聊天主体 -->
+  <div class="chat-wrap">
+    <!-- 欢迎屏 -->
+    <div id="welcome">
+      <div class="welcome-icon">🤖</div>
+      <h2>你好！我是机车智能防溜铁鞋系统专属 AI 助手</h2>
+      <p>我已内置该系统的完整操作手册、源代码文档、采集表规范等核心资料，可帮你解答系统功能、操作流程、技术架构等问题。请先配置 DeepSeek API Key 开始对话。</p>
+      <div class="quick-questions" id="quick-questions"></div>
+    </div>
+    <!-- 聊天记录 -->
+    <div id="chat-container" style="display:none;"></div>
+
+    <!-- 输入栏 -->
+    <div class="input-area">
+      <div class="input-box">
+        <textarea id="user-input" rows="1" placeholder="输入你的问题，例如：系统有哪些功能模块？预警管理怎么操作？…"></textarea>
+        <button id="send-btn" title="发送（Enter）">➤</button>
+      </div>
+      <div class="input-hints">
+        <span class="hint-item">按 <kbd>Enter</kbd> 发送</span>
+        <span class="hint-item"><kbd>Shift</kbd>+<kbd>Enter</kbd> 换行</span>
+        <span class="hint-item" id="model-hint" style="margin-left:auto;color:var(--accent2);">deepseek-chat</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- API Key 弹窗 -->
+<div class="modal-overlay" id="modal" style="display:none;">
+  <div class="modal">
+    <h3>🔑 配置 DeepSeek API Key</h3>
+    <p>请输入你的 DeepSeek API Key，密钥仅保存在本地浏览器中，不会上传至任何服务器。<br>
+      <a href="https://platform.deepseek.com/api_keys" target="_blank" class="modal-link">→ 前往 DeepSeek 平台申请 API Key</a>
+    </p>
+    <input type="password" id="api-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+    <div class="modal-btns">
+      <button class="btn-cancel" id="modal-cancel">取消</button>
+      <button class="btn-primary" id="modal-save">保存并连接</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======================================================
+// 本地知识库 —— 从项目文档提炼的结构化知识
+// ======================================================
+const KNOWLEDGE_BASE = [
+  {
+    id: 'overview',
+    icon: '🏗️',
+    title: '系统整体介绍',
+    desc: '系统目标与背景',
+    content: `
+机车智能防溜铁鞋联动控制与预警系统（以下简称"本系统"）是一款专门为铁路机车防止溜车风险设计的智能化管理系统。
+
+【系统目标】
+- 通过实时监测和精确控制铁鞋状态，确保机车停放安全
+- 提升作业效率，减少因溜车造成的安全事故
+- 实现设备联动控制与自动预警
+
+【版本信息】
+- 软件名称：机车智能防溜铁鞋联动控制与预警系统软件
+- 版本：V1.0
+- 技术栈：PHP（ThinkPHP框架）+ MySQL + Apache，运行于 phpStudy 环境
+
+【运行环境搭建（Windows）】
+1. 下载 phpStudy（https://www.xp.cn/download.html），安装 phpstudy_x64_8.1.1.3.exe
+2. 启动 Apache 2.4.x 服务与 MySQL 5.7.x 服务
+3. 创建站点，根目录指向 project/public 目录
+4. 使用 SQL_Front 工具连接 MySQL（Host: localhost，用户: root，密码: root）
+5. 新建数据库 t_project，执行根目录下的 SQL 文件初始化数据
+6. 浏览器访问 http://127.0.0.1 即可
+    `
+  },
+  {
+    id: 'login',
+    icon: '🔐',
+    title: '登录与权限',
+    desc: '用户登录操作说明',
+    content: `
+【登录方式】
+用户需在登录页面输入用户名和密码以验证身份，通过后进入系统主界面。
+
+【注意事项】
+- 需要有效的账号和密码
+- 密码区分大小写
+- 若忘记密码需联系管理员重置
+    `
+  },
+  {
+    id: 'device-monitor',
+    icon: '📡',
+    title: '设备监控模块',
+    desc: 'DeviceMonitoringController',
+    content: `
+【功能描述】
+实时监测各类设备运行状态，提供设备全生命周期管理。
+
+【监控字段】
+- 编号、名称、类型、状态、运行时间、坐标、电量、信号强度、温度
+
+【主要操作（CRUD）】
+- 新增设备：录入设备基本信息及初始参数
+- 修改设备：modifyDeviceMonitoring() — 更新设备信息
+- 删除设备：actionRemove() — 删除指定设备条目
+- 导出数据：export() — 通过 PhpSpreadsheet 导出 Excel
+- 导入数据：actionTransfer() — 批量导入设备数据
+- 生成记录：actionGenerate() — 自动生成设备记录
+- 条件检索：getFilterOption() / getFilterConditions() — 按条件筛选设备
+
+【技术实现】
+- 后端：PHP 控制器 DeviceMonitoringController
+- 数据层：MyBatis XML Mapper（CRUD SQL）
+- 验证：DeviceMonitoringValidate 规则类
+    `
+  },
+  {
+    id: 'inspection',
+    icon: '🔍',
+    title: '状态巡检模块',
+    desc: '巡检记录与周期管理',
+    content: `
+【功能描述】
+记录设备巡检工作，支持自动巡检周期设置，确保设备运行安全。
+
+【巡检字段】
+- 巡检编号、巡检时间、巡检人员、设备编号
+- 巡检结果（正常/异常）
+- 异常类型、处理措施
+
+【主要操作】
+- 新增巡检记录
+- 查看历史巡检数据
+- 设定巡检周期（定时自动触发）
+- 处理异常报告
+    `
+  },
+  {
+    id: 'linkage-control',
+    icon: '⚙️',
+    title: '联动控制模块',
+    desc: '设备间自动联动控制',
+    content: `
+【功能描述】
+实现设备间自动联动控制，当满足预设条件时自动触发控制命令，是本系统核心功能之一。
+
+【联动字段】
+- 控制编号、控制设备、控制命令
+- 触发时间、操作日志
+
+【主要操作】
+- 配置联动规则（触发条件 + 执行命令）
+- 实时查看控制状态
+- 查看操作日志（审计追踪）
+- 手动触发/停止联动
+
+【联动场景示例】
+- 当铁鞋状态异常时，自动触发报警并联动摄像头录像
+- 设备电量低于阈值时，自动发送预警通知
+    `
+  },
+  {
+    id: 'warning',
+    icon: '🚨',
+    title: '预警管理模块',
+    desc: 'WarningManagementController',
+    content: `
+【功能描述】
+实时预警管理，自动识别异常情况并分级推送，保障系统安全运行。
+
+【预警字段】
+- 预警编号、预警类型、预警级别（低/中/高/紧急）
+- 触发时间、处理人员、处理结果
+
+【主要操作（CRUD）】
+- 查看预警列表：retrieve() — 检索并加载预警数据（支持分页）
+- 搜索预警：search() — 按条件搜索（分页）
+- 处理预警：modify() — 更新预警处理状态
+- 录入预警：enterWarningManagement() — 手动录入预警信息
+- 删除预警：delete() — 删除预警明细
+- 导出报表：actionExport() — 导出预警数据到 Excel
+
+【预警级别说明】
+| 级别 | 颜色 | 含义 |
+|------|------|------|
+| 低   | 蓝色 | 提示性信息，无需立即处理 |
+| 中   | 黄色 | 需关注，计划处理 |
+| 高   | 橙色 | 需尽快处理 |
+| 紧急 | 红色 | 立即响应，优先处理 |
+    `
+  },
+  {
+    id: 'job',
+    icon: '👷',
+    title: '作业管理模块',
+    desc: 'JobManagementController',
+    content: `
+【功能描述】
+管理铁鞋作业全流程，包括作业计划、执行记录和安全措施。
+
+【作业字段】
+- 作业编号、作业类型、作业时间
+- 作业人员、作业状态、安全措施
+
+【主要操作（CRUD）】
+- 调整作业：adjustJobManagement() — 修改作业数据项
+- 删除作业：actionDelete() — 删除作业条目
+- 导出数据：actionExport() — 导出作业记录
+
+【作业类型示例】
+- 铁鞋放置作业
+- 铁鞋撤除作业
+- 设备检修作业
+- 应急处置作业
+    `
+  },
+  {
+    id: 'data-analysis',
+    icon: '📊',
+    title: '数据分析模块',
+    desc: '趋势预测与风险评估',
+    content: `
+【功能描述】
+基于历史数据进行智能分析，提取关键指标，支持趋势预测和风险评估，辅助管理决策。
+
+【分析字段】
+- 分析编号、分析时间、数据来源、分析类型
+- 关键指标、趋势预测结果、风险等级
+
+【主要功能】
+- 历史数据可视化
+- 设备状态趋势分析
+- 预警频率统计
+- 风险评估报告生成
+    `
+  },
+  {
+    id: 'report',
+    icon: '📋',
+    title: '报表统计模块',
+    desc: '统计报表生成与审核',
+    content: `
+【功能描述】
+生成各类统计报表，支持多维度数据汇总，满足管理层决策和合规审查需求。
+
+【报表字段】
+- 报表编号、报表类型、统计周期
+- 数据范围、审核状态
+
+【报表类型】
+- 设备运行状态报表
+- 预警统计报表
+- 作业完成情况报表
+- 巡检合规报表
+
+【导出格式】
+- Excel（.xlsx）— 通过 PhpSpreadsheet 实现
+    `
+  },
+  {
+    id: 'video',
+    icon: '📹',
+    title: '视频联动模块',
+    desc: '实时监控与事件回放',
+    content: `
+【功能描述】
+监控现场环境视频，支持关键事件自动触发录像和事后回放分析。
+
+【主要功能】
+- 实时视频监控画面查看
+- 关键事件自动录像（与联动控制模块协同）
+- 历史视频回放与分析
+- 视频与事件时间轴关联
+
+【应用场景】
+- 铁鞋放置/撤除过程监控
+- 预警触发时段视频取证
+- 安全事故复盘分析
+    `
+  },
+  {
+    id: 'diagnosis',
+    icon: '🔧',
+    title: '系统诊断模块',
+    desc: '设备健康检查与故障排查',
+    content: `
+【功能描述】
+提供设备自检和故障诊断能力，及时发现设备隐患，保障系统稳定运行。
+
+【诊断字段】
+- 诊断编号、诊断时间、诊断类型
+- 诊断结果（正常/异常/故障）
+- 故障类型、处理建议
+
+【主要操作】
+- 发起诊断任务
+- 查看诊断报告
+- 故障追踪与处理记录
+- 设备健康评分
+    `
+  },
+  {
+    id: 'mechanism',
+    icon: '🔩',
+    title: '防溜铁鞋定位机构',
+    desc: '道岔联动定位机构专利',
+    content: `
+【技术背景】
+一种道岔联动的防溜铁鞋插设定位机构，解决传统铁鞋人工放置效率低、定位不准确的问题。
+
+【核心技术特点】
+- 与道岔联动：铁鞋插设动作与道岔状态联动，避免人工误操作
+- 自动定位：精确的机械定位机构，确保铁鞋放置位置一致性
+- 安全互锁：道岔未到位时禁止相关操作，防止事故
+
+【应用场景】
+- 铁路编组站机车停放作业
+- 站线机车防溜保护
+- 与智能控制系统集成使用
+
+【系统集成】
+本定位机构与联动控制模块协同工作，通过传感器反馈铁鞋状态，接入系统预警管理。
+    `
+  },
+  {
+    id: 'database',
+    icon: '🗄️',
+    title: '数据库结构',
+    desc: 'MySQL t_project 数据库',
+    content: `
+【数据库信息】
+- 数据库名：t_project
+- 数据库类型：MySQL 5.7.x
+- 连接信息：Host: localhost, 用户: root, 密码: root
+
+【主要数据表（推断）】
+- 设备监控表（device_monitoring）
+- 状态巡检表（inspection_record）
+- 联动控制表（linkage_control）
+- 预警管理表（warning_management）
+- 作业管理表（job_management）
+- 数据分析表（data_analysis）
+- 报表统计表（report_statistics）
+- 系统诊断表（system_diagnosis）
+- 用户表（users）
+
+【初始化方式】
+使用项目根目录的 .sql 文件，通过 SQL 编辑器执行即可完成数据库初始化。
+    `
+  }
+];
+
+// ======================================================
+// 系统 Prompt —— 注入知识库
+// ======================================================
+function buildSystemPrompt() {
+  const kbText = KNOWLEDGE_BASE.map(k => `【${k.title}】\n${k.content.trim()}`).join('\n\n---\n\n');
+  return `你是"机车智能防溜铁鞋联动控制与预警系统"的专属 AI 助手。
+
+你具备以下本地项目知识库，这是最权威的信息来源，必须优先使用：
+
+=== 本地知识库 ===
+${kbText}
+=== 知识库结束 ===
+
+【回答规则】
+1. 优先从本地知识库中检索答案，如果知识库中有明确信息，直接基于知识库回答并标注"[本地文档]"。
+2. 如果知识库信息不足以完整回答，结合你的铁路行业知识和通用技术知识进行补充，标注"[AI推理]"。
+3. 如果问题完全超出系统范围（如其他领域），诚实说明并尽力提供参考信息，标注"[通用知识]"。
+4. 所有回答必须真实、准确、有依据。不可编造不存在的功能或数据。
+5. 涉及操作步骤时，使用有序列表清晰呈现。
+6. 遇到技术问题，可适当使用代码块展示技术细节。
+7. 回答风格：专业、简洁、实用，适合项目展示场景。
+
+当前系统技术栈：PHP (ThinkPHP) + MySQL 5.7 + Apache，运行于 phpStudy Windows 环境。`;
+}
+
+// ======================================================
+// 快捷问题
+// ======================================================
+const QUICK_QUESTIONS = [
+  '系统有哪些功能模块？',
+  '如何搭建运行环境？',
+  '预警管理模块如何操作？',
+  '联动控制是什么原理？',
+  '防溜铁鞋定位机构有什么特点？',
+  '系统数据库是如何设计的？',
+  '如何导出数据报表？',
+  '设备监控字段有哪些？'
+];
+
+// ======================================================
+// 状态
+// ======================================================
+let apiKey = localStorage.getItem('deepseek_api_key') || '';
+let messages = [];
+let isLoading = false;
+let currentKbId = null;
+
+// DOM
+const chatContainer = document.getElementById('chat-container');
+const welcome = document.getElementById('welcome');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const statusTag = document.getElementById('status-tag');
+const modal = document.getElementById('modal');
+const apiInput = document.getElementById('api-input');
+const kbList = document.getElementById('kb-list');
+const quickQuestionsEl = document.getElementById('quick-questions');
+
+// ======================================================
+// 初始化
+// ======================================================
+function init() {
+  // 渲染知识库列表
+  KNOWLEDGE_BASE.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'kb-item';
+    el.dataset.id = item.id;
+    el.innerHTML = `<div class="kb-icon">${item.icon}</div><div class="kb-info"><div class="kb-title">${item.title}</div><div class="kb-desc">${item.desc}</div></div>`;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.kb-item').forEach(i => i.classList.remove('active'));
+      el.classList.add('active');
+      currentKbId = item.id;
+      askQuestion(`请详细介绍"${item.title}"的功能和操作方法`);
+    });
+    kbList.appendChild(el);
+  });
+
+  // 渲染快捷问题
+  QUICK_QUESTIONS.forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn';
+    btn.textContent = q;
+    btn.addEventListener('click', () => askQuestion(q));
+    quickQuestionsEl.appendChild(btn);
+  });
+
+  // 更新状态
+  updateStatus();
+}
+
+function updateStatus() {
+  if (apiKey) {
+    statusTag.textContent = '已连接';
+    statusTag.className = 'tag active';
+    document.getElementById('api-key-btn').textContent = '⚙ 更换 API Key';
+  } else {
+    statusTag.textContent = '未连接';
+    statusTag.className = 'tag';
+    document.getElementById('api-key-btn').textContent = '⚙ 配置 API Key';
+  }
+}
+
+// ======================================================
+// 自动调整输入框高度
+// ======================================================
+userInput.addEventListener('input', () => {
+  userInput.style.height = 'auto';
+  userInput.style.height = Math.min(userInput.scrollHeight, 160) + 'px';
+});
+
+// ======================================================
+// 发送
+// ======================================================
+userInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+sendBtn.addEventListener('click', sendMessage);
+
+function askQuestion(q) {
+  if (!apiKey) { showModal(); return; }
+  userInput.value = q;
+  sendMessage();
+}
+
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text || isLoading) return;
+  if (!apiKey) { showModal(); return; }
+
+  // 切换到聊天视图
+  if (welcome.style.display !== 'none') {
+    welcome.style.display = 'none';
+    chatContainer.style.display = 'block';
+  }
+
+  userInput.value = '';
+  userInput.style.height = 'auto';
+
+  // 显示用户消息
+  appendMsg('user', text);
+  messages.push({ role: 'user', content: text });
+
+  // 显示思考动画
+  const thinkId = appendThinking();
+
+  isLoading = true;
+  sendBtn.disabled = true;
+
+  try {
+    const response = await callDeepSeek(messages);
+    removeThinking(thinkId);
+
+    const aiText = response.choices[0].message.content;
+    messages.push({ role: 'assistant', content: aiText });
+
+    // 判断来源标签
+    const sourceTag = detectSource(aiText, text);
+    appendMsg('ai', aiText, sourceTag);
+  } catch (err) {
+    removeThinking(thinkId);
+    appendMsg('ai', `⚠️ **请求失败**\n\n${err.message}\n\n请检查 API Key 是否正确，或稍后重试。`, null, true);
+  } finally {
+    isLoading = false;
+    sendBtn.disabled = false;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+}
+
+// ======================================================
+// 调用 DeepSeek API
+// ======================================================
+async function callDeepSeek(msgs) {
+  const payload = {
+    model: 'deepseek-chat',
+    messages: [
+      { role: 'system', content: buildSystemPrompt() },
+      ...msgs.slice(-20) // 保留最近20条消息防止超token
+    ],
+    temperature: 0.3,
+    max_tokens: 2048,
+    stream: false
+  };
+
+  const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+// ======================================================
+// 来源检测
+// ======================================================
+function detectSource(text, question) {
+  const kbKeywords = ['本地文档', '知识库', '操作手册', 'V1.0', 'phpStudy', 't_project', 'ThinkPHP', 
+                       'DeviceMonitoring', 'WarningManagement', 'JobManagement'];
+  const hasKb = kbKeywords.some(k => text.includes(k)) || 
+                KNOWLEDGE_BASE.some(kb => question.includes(kb.title) || question.includes(kb.desc));
+  if (hasKb) return 'kb';
+  return 'mix';
+}
+
+// ======================================================
+// 渲染消息
+// ======================================================
+function appendMsg(role, text, sourceTag, isError) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const avatarClass = role === 'ai' ? 'ai-av' : 'user-av';
+  const avatarIcon = role === 'ai' ? '🤖' : '👤';
+
+  let sourceHtml = '';
+  if (role === 'ai' && sourceTag) {
+    const tagMap = { kb: ['本地文档', 'kb'], net: ['联网搜索', 'net'], mix: ['AI推理', 'mix'] };
+    const [label, cls] = tagMap[sourceTag] || ['AI回答', 'mix'];
+    sourceHtml = `<span class="source-tag ${cls}">${label}</span>`;
+  }
+
+  const metaHtml = role === 'ai' ? `<div class="bubble-meta">${sourceHtml} <span>${new Date().toLocaleTimeString()}</span></div>` : '';
+
+  div.innerHTML = `
+    <div class="avatar ${avatarClass}">${avatarIcon}</div>
+    <div class="bubble">
+      ${metaHtml}
+      <div class="bubble-content">${renderMarkdown(text)}</div>
+    </div>
+  `;
+
+  chatContainer.appendChild(div);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+  return div;
+}
+
+function appendThinking() {
+  const id = 'think-' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = id;
+  div.innerHTML = `
+    <div class="avatar ai-av">🤖</div>
+    <div class="bubble">
+      <div class="thinking">
+        <div class="dots"><span></span><span></span><span></span></div>
+        正在分析文档并思考中…
+      </div>
+    </div>
+  `;
+  chatContainer.appendChild(div);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+  return id;
+}
+
+function removeThinking(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// ======================================================
+// Markdown 渲染（轻量级）
+// ======================================================
+function renderMarkdown(text) {
+  let html = text
+    // 转义HTML
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // 代码块
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => 
+      `<pre><code class="lang-${lang}">${code.trim()}</code></pre>`)
+    // 行内代码
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // 粗体
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // 斜体
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // 标题 H3
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    // 标题 H4
+    .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+    // 标题 H2
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    // 水平线
+    .replace(/^---$/gm, '<hr>')
+    // 有序列表
+    .replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>')
+    // 无序列表
+    .replace(/^[-*]\s(.+)$/gm, '<li>$1</li>')
+    // 表格
+    .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)+)/g, (match, header, body) => {
+      const heads = header.split('|').filter(Boolean).map(h => `<th>${h.trim()}</th>`).join('');
+      const rows = body.trim().split('\n').map(row => {
+        const cells = row.split('|').filter(Boolean).map(c => `<td>${c.trim()}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+      return `<table><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table>`;
+    })
+    // 段落（双换行）
+    .replace(/\n\n/g, '</p><p>')
+    // 单换行
+    .replace(/\n/g, '<br>');
+
+  // 包裹段落
+  html = '<p>' + html + '</p>';
+  // 修复列表
+  html = html.replace(/<\/li><br><li>/g, '</li><li>');
+  html = html.replace(/<p>(<li>.*?<\/li>)<\/p>/gs, '<ul>$1</ul>');
+  html = html.replace(/<br><li>/g, '<li>').replace(/<\/li><br>/g, '</li>');
+
+  return html;
+}
+
+// ======================================================
+// API Key 弹窗
+// ======================================================
+function showModal() {
+  apiInput.value = apiKey;
+  modal.style.display = 'flex';
+  setTimeout(() => apiInput.focus(), 100);
+}
+
+document.getElementById('api-key-btn').addEventListener('click', showModal);
+document.getElementById('modal-cancel').addEventListener('click', () => modal.style.display = 'none');
+modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+
+document.getElementById('modal-save').addEventListener('click', () => {
+  const val = apiInput.value.trim();
+  if (!val) { apiInput.style.borderColor = 'var(--danger)'; return; }
+  apiKey = val;
+  localStorage.setItem('deepseek_api_key', val);
+  modal.style.display = 'none';
+  updateStatus();
+  // 如果已有输入则直接发送
+  if (userInput.value.trim()) sendMessage();
+});
+
+apiInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('modal-save').click();
+  apiInput.style.borderColor = '';
+});
+
+// ======================================================
+// 清空对话
+// ======================================================
+document.getElementById('clear-btn').addEventListener('click', () => {
+  messages = [];
+  chatContainer.innerHTML = '';
+  chatContainer.style.display = 'none';
+  welcome.style.display = 'flex';
+  document.querySelectorAll('.kb-item').forEach(i => i.classList.remove('active'));
+  currentKbId = null;
+});
+
+// ======================================================
+// 启动
+// ======================================================
+init();
+
+// 检测是否需要弹出Key弹窗
+if (!apiKey) {
+  setTimeout(showModal, 800);
+}
+</script>
+</body>
+</html>
